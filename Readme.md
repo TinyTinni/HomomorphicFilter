@@ -1,4 +1,4 @@
-# Homomorphic Filter
+# Homomorphic Image Filter
 
 Implements a [Homomorphic Filter](https://en.wikipedia.org/wiki/Homomorphic_filtering) based on the Algorithm described in Digital Image Processing by Rafael C. Gonzalez.
 

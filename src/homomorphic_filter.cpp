@@ -95,13 +95,16 @@ float distanceToFreqRect(int x, int y, const cv::Size &size)
 cv::Mat createPassFilter(const cv::Size &size, float cutoff)
 {
     const float d0_inv = 1.f / (2.f * cutoff * cutoff);
-    cv::Mat filter = cv::Mat(size, CV_32FC1);
-    for (int y = 0; y < size.height; ++y) {
-        for (int x = 0; x < size.width; ++x) {
+    cv::Mat filter(size, CV_32FC1, 0.f);
+    cv::parallel_for_(cv::Range(0, size.height * size.width), [&](const cv::Range &range) {
+        for (int r = range.start; r < range.end; ++r) {
+            int y = r / size.height;
+            int x = r % size.width;
             float dist = distanceToFreqRect(x, y, size);
             filter.at<float>(y, x) = 1.f - expf(-1 * dist * dist * d0_inv);
         }
-    }
+    });
+
     dftShift(filter);
     return filter;
 }

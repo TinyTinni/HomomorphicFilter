@@ -28,7 +28,8 @@ void dftShift(cv::InputOutputArray _out)
             half1.copyTo(planes[i](cv::Rect(0, 0, mid, 1)));
             tmp.copyTo(planes[i](cv::Rect(mid, 0, mid + is_odd, 1)));
         }
-    } else {
+    }
+    else {
         int isXodd = out.cols & 1;
         int isYodd = out.rows & 1;
         for (size_t i = 0; i < planes.size(); ++i) {
@@ -47,7 +48,8 @@ void dftShift(cv::InputOutputArray _out)
                 q1.copyTo(tmp);
                 q2.copyTo(q1);
                 tmp.copyTo(q2);
-            } else {
+            }
+            else {
                 cv::Mat tmp0, tmp1, tmp2, tmp3;
                 q0.copyTo(tmp0);
                 q1.copyTo(tmp1);
@@ -72,38 +74,38 @@ cv::Mat prepareImageSize(cv::Mat in)
     int m = cv::getOptimalDFTSize(in.rows);
     int n = cv::getOptimalDFTSize(in.cols);
     cv::copyMakeBorder(in,
-                       padded,
-                       0,
-                       m - in.rows,
-                       0,
-                       n - in.cols,
-                       cv::BORDER_CONSTANT,
-                       cv::Scalar::all(0));
+        padded,
+        0,
+        m - in.rows,
+        0,
+        n - in.cols,
+        cv::BORDER_CONSTANT,
+        cv::Scalar::all(0));
     return padded;
 }
 
 /// distance to frequency rectangle (D function 4.8-2 in Digital Image Processing by Rafael C. Gonzalez)
-float distanceToFreqRect(int x, int y, const cv::Size &size)
+float distanceToFreqRect(int x, int y, const cv::Size& size)
 {
-    auto u = (x - size.width * 0.5);
+    auto u = (x - size.width * 0.5f);
     u = u * u;
-    auto v = (y - size.height * 0.5);
+    auto v = (y - size.height * 0.5f);
     v = v * v;
-    return sqrt(u + v);
+    return sqrtf(u + v);
 }
 
-cv::Mat createPassFilter(const cv::Size &size, float cutoff)
+cv::Mat createPassFilter(const cv::Size& size, float cutoff)
 {
     const float d0_inv = 1.f / (2.f * cutoff * cutoff);
     cv::Mat filter(size, CV_32FC1, 0.f);
-    cv::parallel_for_(cv::Range(0, size.height * size.width), [&](const cv::Range &range) {
+    cv::parallel_for_(cv::Range(0, size.height * size.width), [&](const cv::Range& range) {
         for (int r = range.start; r < range.end; ++r) {
-            int y = r / size.height;
-            int x = r % size.width;
+            int y = r % size.height;
+            int x = r / size.width;
             float dist = distanceToFreqRect(x, y, size);
             filter.at<float>(y, x) = 1.f - expf(-1 * dist * dist * d0_inv);
         }
-    });
+        });
 
     dftShift(filter);
     return filter;
@@ -111,32 +113,35 @@ cv::Mat createPassFilter(const cv::Size &size, float cutoff)
 
 cv::Mat applyHomomorphicFilter(cv::Mat input, cv::Mat filter)
 {
-    cv::Mat log;
-    input.convertTo(log, CV_32F, 1.0 / 255.0, 1);
+    using Mat = cv::UMat;
+
+    Mat log;
+    input.convertTo(log, CV_32F, 1.f / 255.f, 1);
     cv::log(log, log);
 
-    // frequency domain filtering
-    cv::Mat planes[] = {log, cv::Mat::zeros(log.size(), CV_32FC1)};
-    cv::Mat complex;
-    cv::merge(planes, 2, complex);
+    // dft
+    std::vector planes = { log, Mat::zeros(log.size(), CV_32FC1) };
+    Mat complex;
+    cv::merge(planes, complex);
     cv::dft(complex, complex);
     cv::split(complex, planes);
 
-    // filtering and iFFT
-    cv::Mat processedReal = cv::Mat(planes[0].size(), planes[0].type());
-    cv::Mat processedComplex = cv::Mat(planes[1].size(), planes[1].type());
+    // filtering
+    Mat processedReal(planes[0].size(), planes[0].type());
+    Mat processedComplex(planes[1].size(), planes[1].type());
     cv::multiply(planes[0], filter, processedReal);
     cv::multiply(planes[1], filter, processedComplex);
-    cv::Mat processed[] = {processedReal, processedComplex};
-    cv::merge(processed, 2, complex);
+    std::vector processed = { processedReal, processedComplex };
+    cv::merge(processed, complex);
 
-    // inverse dft and get real
-    cv::Mat output;
+    // inverse dft
+    Mat output;
     cv::idft(complex, complex);
     cv::extractChannel(complex, output, 0);
     cv::normalize(output, output, 0, 1, cv::NORM_MINMAX);
     cv::exp(output, output);
-    output -= 1.0;
+    cv::add(output, cv::Scalar(-1), output);
+
     cv::Mat dest;
     output.convertTo(dest, CV_8UC1, 255);
     return dest;

@@ -16,6 +16,18 @@ set(SOURCES
     "src/ui/mainwindow.cpp"
     "src/ui/mainwindow.ui")
 
-add_executable(dft_filters ${SOURCES})
+qt_add_executable(dft_filters ${SOURCES})
 target_include_directories(dft_filters PUBLIC ${OpenCV_INCLUDE_DIRS})
 target_link_libraries(dft_filters PUBLIC ${OpenCV_LIBS} Qt6::Core Qt6::Widgets)
+
+install(TARGETS dft_filters
+    BUNDLE  DESTINATION .
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+)
+
+qt_generate_deploy_app_script(
+    TARGET dft_filters
+    OUTPUT_SCRIPT deploy_script
+    NO_UNSUPPORTED_PLATFORM_ERROR
+)
+install(SCRIPT ${deploy_script})

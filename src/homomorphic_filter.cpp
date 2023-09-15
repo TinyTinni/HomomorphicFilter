@@ -100,8 +100,8 @@ cv::Mat createPassFilter(const cv::Size& size, float cutoff)
     cv::Mat filter(size, CV_32FC1, 0.f);
     cv::parallel_for_(cv::Range(0, size.height * size.width), [&](const cv::Range& range) {
         for (int r = range.start; r < range.end; ++r) {
-            int x = r / size.height;
-            int y = r % size.width;
+            int x = r % size.width;
+            int y = r / size.width;
             float dist = distanceToFreqRect(x, y, size);
             filter.at<float>(y, x) = 1.f - expf(-1 * dist * dist * d0_inv);
         }
